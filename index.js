@@ -1,8 +1,12 @@
+require("dotenv").config();
 const express = require("express");
 const morgan = require("morgan");
 const cors = require("cors");
+const mongoose = require("mongoose");
 const app = express();
+const Person = require("./models/person");
 
+/** Middleware */
 app.use(express.json());
 morgan.token("body", (req, res) => JSON.stringify(req.body));
 app.use(
@@ -11,6 +15,19 @@ app.use(
 // static dist from frontend
 app.use(express.static("dist"));
 app.use(cors());
+
+// const password = process.argv[2];
+// const url = `mongodb+srv://seanwillmis:${password}@fullstackopen.flvuqn4.mongodb.net/phonebookApp?retryWrites=true&w=majority&appName=fullstackopen`;
+
+// mongoose.set("strictQuery", false);
+// mongoose.connect(url);
+
+// const personSchema = new mongoose.Schema({
+//   name: String,
+//   number: String,
+// });
+
+// const Person = mongoose.model("Person", personSchema);
 
 let persons = [
   {
@@ -38,8 +55,8 @@ let persons = [
 const today = new Date();
 
 const generateId = () => {
-  const maxId = persons.length > 0 ? Math.max(...persons.map((n) => n.id)) : 0;
-  return maxId + 1;
+  const id = Math.round(Math.random() * 10000000);
+  return id;
 };
 
 // get landing page
@@ -49,7 +66,9 @@ app.get("/", (request, response) => {
 
 // get all persons
 app.get("/api/persons", (request, response) => {
-  response.json(persons);
+  Person.find({}).then((persons) => {
+    response.json(persons);
+  });
 });
 
 // get info
@@ -61,25 +80,28 @@ app.get("/info", (request, response) => {
 
 // get single resource
 app.get("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
-  const person = persons.find((note) => note.id === id);
+  // const id = Number(request.params.id);
+  // const person = persons.find((note) => note.id === id);
 
-  if (person) {
+  // if (person) {
+  //   response.json(person);
+  // } else {
+  //   response.status(404).end();
+  // }
+  Person.findById(request.params.id).then((person) => {
     response.json(person);
-  } else {
-    response.status(404).end();
-  }
+  });
 });
 
 // post single resource
 app.post("/api/persons", (request, response) => {
   const body = request.body;
 
-  const alreadyExists = persons.some((perperson) => {
-    if (perperson.name === body.name) {
-      return true;
-    }
-  });
+  // const alreadyExists = persons.some((perperson) => {
+  //   if (perperson.name === body.name) {
+  //     return true;
+  //   }
+  // });
 
   // content body cannot be empty or duplicated name,
   // or else respond with a 400
@@ -87,20 +109,21 @@ app.post("/api/persons", (request, response) => {
     return response.status(400).json({
       error: "Name or Numner is missing",
     });
-  } else if (alreadyExists) {
-    return response.status(400).json({
-      error: "Name already exists",
-    });
+    // } else if (alreadyExists) {
+    //   return response.status(400).json({
+    //     error: "Name already exists",
+    //   });
   }
 
-  const person = {
+  const person = new Person({
     id: generateId(),
     name: body.name,
     number: body.number,
-  };
+  });
 
-  persons = persons.concat(person);
-  response.json(person);
+  person.save().then((savedPerson) => {
+    response.json(savedPerson);
+  });
 });
 
 // delete single resource
@@ -111,7 +134,7 @@ app.delete("/api/persons/:id", (request, response) => {
   response.status(204).end();
 });
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
