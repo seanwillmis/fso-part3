@@ -16,29 +16,6 @@ app.use(
 
 app.use(cors());
 
-let persons = [
-  {
-    id: 1,
-    name: "Arto Hellas",
-    number: "040-123456",
-  },
-  {
-    id: 2,
-    name: "Ada Lovelace",
-    number: "39-44-5323523",
-  },
-  {
-    id: 3,
-    name: "Dan Abramov",
-    number: "12-43-234345",
-  },
-  {
-    id: 4,
-    name: "Mary Poppendieck",
-    number: "39-23-6423122",
-  },
-];
-
 const today = new Date();
 
 const generateId = () => {
@@ -52,21 +29,23 @@ app.get("/", (request, response) => {
 });
 
 // get all persons
-app.get("/api/persons", (request, response) => {
-  Person.find({}).then((persons) => {
-    response.json(persons);
-  });
+app.get("/api/persons", (request, response, next) => {
+  Person.find({})
+    .then((persons) => {
+      response.json(persons);
+    })
+    .catch((error) => next(error));
 });
 
 // get info
-app.get("/info", (request, response) => {
-  response.send(
-    `<p>Phonebook has info for ${persons.length} <br/> ${today}</p>`
-  );
-});
+// app.get("/info", (request, response) => {
+//   response.send(
+//     `<p>Phonebook has info for ${persons.length} <br/> ${today}</p>`
+//   );
+// });
 
 // get single resource
-app.get("/api/persons/:id", (request, response) => {
+app.get("/api/persons/:id", (request, response, next) => {
   // const id = Number(request.params.id);
   // const person = persons.find((note) => note.id === id);
 
@@ -87,7 +66,7 @@ app.get("/api/persons/:id", (request, response) => {
 });
 
 // post single resource
-app.post("/api/persons", (request, response) => {
+app.post("/api/persons", (request, response, next) => {
   const body = request.body;
 
   // const alreadyExists = persons.some((perperson) => {
@@ -114,9 +93,12 @@ app.post("/api/persons", (request, response) => {
     number: body.number,
   });
 
-  person.save().then((savedPerson) => {
-    response.json(savedPerson);
-  });
+  person
+    .save()
+    .then((savedPerson) => {
+      response.json(savedPerson);
+    })
+    .catch((error) => next(error));
 });
 
 // update single resource
