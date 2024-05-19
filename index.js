@@ -7,27 +7,14 @@ const app = express();
 const Person = require("./models/person");
 
 /** Middleware */
+app.use(express.static("dist"));
 app.use(express.json());
 morgan.token("body", (req, res) => JSON.stringify(req.body));
 app.use(
   morgan(":method :url :status :res[content-length] - :response-time ms  :body")
 );
-// static dist from frontend
-app.use(express.static("dist"));
+
 app.use(cors());
-
-// const password = process.argv[2];
-// const url = `mongodb+srv://seanwillmis:${password}@fullstackopen.flvuqn4.mongodb.net/phonebookApp?retryWrites=true&w=majority&appName=fullstackopen`;
-
-// mongoose.set("strictQuery", false);
-// mongoose.connect(url);
-
-// const personSchema = new mongoose.Schema({
-//   name: String,
-//   number: String,
-// });
-
-// const Person = mongoose.model("Person", personSchema);
 
 let persons = [
   {
@@ -88,9 +75,15 @@ app.get("/api/persons/:id", (request, response) => {
   // } else {
   //   response.status(404).end();
   // }
-  Person.findById(request.params.id).then((person) => {
-    response.json(person);
-  });
+  Person.findById(request.params.id)
+    .then((person) => {
+      if (person) {
+        response.json(person);
+      } else {
+        response.status(404).end();
+      }
+    })
+    .catch((error) => next(error));
 });
 
 // post single resource
@@ -126,13 +119,50 @@ app.post("/api/persons", (request, response) => {
   });
 });
 
-// delete single resource
-app.delete("/api/persons/:id", (request, response) => {
-  const id = Number(request.params.id);
-  persons = persons.filter((person) => person.id !== id);
+// update single resource
+app.put("/api/persons/:id", (request, response, next) => {
+  const body = request.body;
 
-  response.status(204).end();
+  const person = {
+    name: body.name,
+    number: body.number,
+  };
+
+  Person.findByIdAndUpdate(request.params.id, person, { new: true })
+    .then((updatedPerson) => {
+      response.json(updatedPerson);
+    })
+    .catch((error) => next(error));
 });
+
+// delete single resource
+app.delete("/api/persons/:id", (request, response, next) => {
+  Person.findByIdAndDelete(request.params.id)
+    .then((result) => {
+      response.status(204).end();
+    })
+    .catch((error) => next(error));
+});
+
+const unknownEndpoint = (request, response) => {
+  response.status(404).send({ error: "unknown endpoint" });
+};
+
+// handler of requests with unknown endpoint
+app.use(unknownEndpoint);
+
+const errorHandler = (error, request, response, next) => {
+  console.error(error.message);
+
+  if (error.name === "CastError") {
+    return response.status(400).send({ error: "malformatted id" });
+  }
+
+  next(error);
+};
+
+// this has to be the last loaded middleware, also all the routes should be registered before this!
+app.use(errorHandler);
 
 const PORT = process.env.PORT;
 app.listen(PORT, () => {
